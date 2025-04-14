@@ -14,4 +14,4 @@ Die App bietet eine Oberfläche und verschiedene Funktionen, um den Überblick �
 
 - Filme und Serien zur Watchlist hinzufügen, bearbeiten und löschen
 - Inhalte nach Status oder Genre organisieren
-- Optionale Filter- und Suchfunktionen zur besseren Übersichtc
+- Optionale Filter- und Suchfunktionen zur besseren Übersicht
