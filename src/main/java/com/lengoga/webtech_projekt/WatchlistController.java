@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@CrossOrigin
+@CrossOrigin(origins = {"https://meinvueprojekt2.onrender.com"})
 public class WatchlistController {
 
     @GetMapping("/watchlist")
