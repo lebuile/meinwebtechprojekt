@@ -48,4 +48,20 @@ public class MediaService {
     public List<Media> getMoviesList() {
         return getMediasByType(MediaType.MOVIE);
     }
+
+    public List<Media> filterMedia(List<String> genres, MediaType type) {
+        if (genres == null || genres.isEmpty()) {
+            if (type == null) {
+                return repo.findAll();
+            } else {
+                return repo.findByType(type);
+            }
+        } else {
+            if (type == null) {
+                return repo.findByGenreInIgnoreCase(genres);
+            } else {
+                return repo.findByGenreInIgnoreCaseAndType(genres, type);
+            }
+        }
+    }
 }

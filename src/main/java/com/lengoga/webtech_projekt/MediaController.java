@@ -55,4 +55,11 @@ public class MediaController {
         series.forEach(m -> System.out.println(m.getTitle() + " - Typ: " + m.getType()));
         return series;
     }
+
+    @GetMapping("/filter")
+    public List<Media> filterMedia(
+            @RequestParam(required = false) List<String> genres,
+            @RequestParam(required = false) MediaType type) {
+        return mediaService.filterMedia(genres, type);
+    }
 }

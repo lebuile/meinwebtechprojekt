@@ -9,4 +9,6 @@ import java.util.List;
 public interface MediaRepository extends JpaRepository<Media, Long> {
     List<Media> findByWatched(boolean watched);
     List<Media> findByType(MediaType type);
+    List<Media> findByGenreInIgnoreCase(List<String> genres);
+    List<Media> findByGenreInIgnoreCaseAndType(List<String> genres, MediaType type);
 }
