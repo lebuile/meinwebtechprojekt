@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface MovieRepository extends JpaRepository<Movie, Long> {
-    List<Movie> findByWatched(boolean watched);
+public interface MediaRepository extends JpaRepository<Media, Long> {
+    List<Media> findByWatched(boolean watched);
+    List<Media> findByType(MediaType type);
 }

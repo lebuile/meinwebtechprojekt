@@ -3,7 +3,7 @@ package com.lengoga.webtech_projekt;
 import jakarta.persistence.*;
 
 @Entity
-public class Movie {
+public class Media {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -12,10 +12,13 @@ public class Movie {
     private String genre;
     private boolean watched;
 
-    public Movie() {
+    @Enumerated(EnumType.STRING)
+    private MediaType type;
+
+    public Media() {
     }
 
-    public Movie(String title, String genre, boolean watched) {
+    public Media(String title, String genre, boolean watched) {
         this.title = title;
         this.genre = genre;
         this.watched = watched;
@@ -48,4 +51,8 @@ public class Movie {
     public void setWatched(boolean watched) {
         this.watched = watched;
     }
+
+    public MediaType getType() { return type; }
+
+    public void setType(MediaType type) { this.type = type; }
 }
