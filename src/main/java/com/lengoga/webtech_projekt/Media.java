@@ -29,6 +29,12 @@ public class Media {
     @Enumerated(EnumType.STRING)
     private MediaType type;
 
+    @Column(name = "tmdb_id")
+    private Integer tmdbId;
+
+    @Column(name = "trailer_url", length = 500)
+    private String trailerUrl;
+
     public Media() {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
@@ -133,6 +139,24 @@ public class Media {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Integer getTmdbId() {
+        return tmdbId;
+    }
+
+    public void setTmdbId(Integer tmdbId) {
+        this.tmdbId = tmdbId;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public String getTrailerUrl() {
+        return trailerUrl;
+    }
+
+    public void setTrailerUrl(String trailerUrl) {
+        this.trailerUrl = trailerUrl;
+        this.updatedAt = LocalDateTime.now();
     }
 
     public void updateRatingWithDate(Integer rating, String comment) {

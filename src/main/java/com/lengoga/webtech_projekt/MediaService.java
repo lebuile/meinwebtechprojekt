@@ -52,6 +52,13 @@ public class MediaService {
             media.setWatched(updatedMedia.isWatched());
             media.setType(updatedMedia.getType());
 
+            if (updatedMedia.getTmdbId() != null) {
+                media.setTmdbId(updatedMedia.getTmdbId());
+            }
+            if (updatedMedia.getTrailerUrl() != null) {
+                media.setTrailerUrl(updatedMedia.getTrailerUrl());
+            }
+
             if (updatedMedia.getRating() != null ||
                     (updatedMedia.getComment() != null && !updatedMedia.getComment().trim().isEmpty())) {
                 media.updateRatingWithDate(updatedMedia.getRating(), updatedMedia.getComment());
@@ -123,5 +130,14 @@ public class MediaService {
                 return repo.findByGenreInIgnoreCaseAndType(genres, type);
             }
         }
+    }
+
+    public Media getMediaById(Long id) {
+        Optional<Media> media = repo.findById(id);
+        return media.orElse(null);
+    }
+
+    public Media saveMedia(Media media) {
+        return repo.save(media);
     }
 }
