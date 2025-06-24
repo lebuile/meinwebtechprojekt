@@ -2,6 +2,7 @@ package com.lengoga.webtech_projekt;
 
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @RestController
@@ -28,6 +29,11 @@ public class MediaController {
     @DeleteMapping("/{id}")
     public void deleteMedia(@PathVariable Long id) {
         mediaService.deleteMedia(id);
+    }
+
+    @PutMapping("/{id}")
+    public Media updateMedia(@PathVariable Long id, @RequestBody Media media) {
+        return mediaService.updateMedia(id, media);
     }
 
     @GetMapping("/watched")
@@ -61,5 +67,42 @@ public class MediaController {
             @RequestParam(required = false) List<String> genres,
             @RequestParam(required = false) MediaType type) {
         return mediaService.filterMedia(genres, type);
+    }
+
+    @GetMapping("/rated")
+    public List<Media> getRatedMedias() {
+        return mediaService.getRatedMedias();
+    }
+
+    @PatchMapping("/{id}/rating")
+    public Media updateRating(@PathVariable Long id, @RequestBody RatingRequest request) {
+        return mediaService.updateRating(id, request.getRating(), request.getComment());
+    }
+
+    @GetMapping("/latest-rating-date")
+    public LatestRatingResponse getLatestRatingDate() {
+        LocalDateTime latestDate = mediaService.getLatestRatingDate();
+        return new LatestRatingResponse(latestDate);
+    }
+
+    public static class RatingRequest {
+        private Integer rating;
+        private String comment;
+
+        public Integer getRating() { return rating; }
+        public void setRating(Integer rating) { this.rating = rating; }
+        public String getComment() { return comment; }
+        public void setComment(String comment) { this.comment = comment; }
+    }
+
+    public static class LatestRatingResponse {
+        private LocalDateTime latestRatingDate;
+
+        public LatestRatingResponse(LocalDateTime latestRatingDate) {
+            this.latestRatingDate = latestRatingDate;
+        }
+
+        public LocalDateTime getLatestRatingDate() { return latestRatingDate; }
+        public void setLatestRatingDate(LocalDateTime latestRatingDate) { this.latestRatingDate = latestRatingDate; }
     }
 }
