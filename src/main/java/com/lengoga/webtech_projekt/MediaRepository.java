@@ -10,11 +10,8 @@ import java.util.List;
 public interface MediaRepository extends JpaRepository<Media, Long> {
     // Benutzerbezogene Abfragen
     List<Media> findByUserId(Long userId);
-    List<Media> findByUserIdAndType(Long userId, MediaType type);
+    List<Media> findByUserIdAndType(Long userId, MediaType type);  // Diese Zeile nur EINMAL!
     List<Media> findByUserIdAndWatched(Long userId, boolean watched);
-
-    // Filtern nach Typ für einen bestimmten Benutzer
-    List<Media> findByUserIdAndType(Long userId, MediaType type);
 
     // Genre-Filterung für einen bestimmten Benutzer
     List<Media> findByUserIdAndGenreInIgnoreCase(Long userId, List<String> genres);
@@ -31,8 +28,7 @@ public interface MediaRepository extends JpaRepository<Media, Long> {
     @Query("SELECT m FROM Media m WHERE m.user.id = ?1 AND m.rating >= ?2 ORDER BY m.rating DESC")
     List<Media> findByUserIdAndRatingGreaterThanEqualOrderByRatingDesc(Long userId, Integer minRating);
 
-    // Die bisherigen Methoden können als Legacy-Methoden beibehalten werden
-    // oder für administrative Zwecke weiterhin genutzt werden
+    // Legacy-Methoden
     List<Media> findByWatched(boolean watched);
     List<Media> findByType(MediaType type);
     List<Media> findByGenreInIgnoreCase(List<String> genres);

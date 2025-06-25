@@ -19,9 +19,143 @@ public class MediaService {
         this.userRepository = userRepository;
     }
 
+    // ===== BENUTZERSPEZIFISCHE METHODEN =====
+
     public List<Media> getMediasByUser(Long userId) {
+        validateUser(userId);
+        return repo.findByUserId(userId);
+    }
+
+    public List<Media> getWatchedMediaByUser(Long userId) {
+        validateUser(userId);
+        return repo.findByUserIdAndWatched(userId, true);
+    }
+
+    public List<Media> getUnwatchedMediaByUser(Long userId) {
+        validateUser(userId);
+        return repo.findByUserIdAndWatched(userId, false);
+    }
+
+    public List<Media> getSeriesByUser(Long userId) {
+        validateUser(userId);
+        return repo.findByUserIdAndType(userId, MediaType.SERIES);
+    }
+
+    public List<Media> getMoviesByUser(Long userId) {
+        validateUser(userId);
+        return repo.findByUserIdAndType(userId, MediaType.MOVIE);
+    }
+
+    public List<Media> getRatedMediaByUser(Long userId) {
+        validateUser(userId);
+        return repo.findByUserIdAndRatingIsNotNull(userId);
+    }
+
+    public List<Media> getTopRatedMediaByUser(Long userId) {
+        validateUser(userId);
+        return repo.findByUserIdAndRatingIsNotNullOrderByRatingDesc(userId);
+    }
+
+    public List<Media> getMediaByRating(Long userId, Integer rating) {
+        validateUser(userId);
+        if (rating < 1 || rating > 5) {
+            throw new IllegalArgumentException("Rating muss zwischen 1 und 5 liegen");
+        }
+        return repo.findByUserIdAndRating(userId, rating);
+    }
+
+    public List<Media> getMediaByMinRating(Long userId, Integer minRating) {
+        validateUser(userId);
+        if (minRating < 1 || minRating > 5) {
+            throw new IllegalArgumentException("Rating muss zwischen 1 und 5 liegen");
+        }
+        return repo.findByUserIdAndRatingGreaterThanEqualOrderByRatingDesc(userId, minRating);
+    }
+
+    public List<Media> getMediaByGenres(Long userId, List<String> genres) {
+        validateUser(userId);
+        if (genres == null || genres.isEmpty()) {
+            return repo.findByUserId(userId);
+        }
+        return repo.findByUserIdAndGenreInIgnoreCase(userId, genres);
+    }
+
+    public Media addMedia(Media media, Long userId) {
+        User user = validateUser(userId);
+        media.setUser(user);
+        return repo.save(media);
+    }
+
+    public Optional<Media> updateMedia(Long mediaId, Media updatedMedia, Long userId) {
+        validateUser(userId);
+        Optional<Media> existingMediaOpt = repo.findById(mediaId);
+
+        if (existingMediaOpt.isPresent()) {
+            Media existingMedia = existingMediaOpt.get();
+
+            // Sicherheitscheck: Nur der Besitzer kann das Medium bearbeiten
+            if (!existingMedia.getUser().getId().equals(userId)) {
+                throw new SecurityException("Sie können nur Ihre eigenen Medien bearbeiten");
+            }
+
+            // Aktualisiere die Felder
+            existingMedia.setTitle(updatedMedia.getTitle());
+            existingMedia.setGenre(updatedMedia.getGenre());
+            existingMedia.setWatched(updatedMedia.isWatched());
+            existingMedia.setType(updatedMedia.getType());
+
+            if (updatedMedia.getTmdbId() != null) {
+                existingMedia.setTmdbId(updatedMedia.getTmdbId());
+            }
+            if (updatedMedia.getTrailerUrl() != null) {
+                existingMedia.setTrailerUrl(updatedMedia.getTrailerUrl());
+            }
+
+            // Rating und Kommentar aktualisieren
+            if (updatedMedia.getRating() != null ||
+                    (updatedMedia.getComment() != null && !updatedMedia.getComment().trim().isEmpty())) {
+                existingMedia.updateRatingWithDate(updatedMedia.getRating(), updatedMedia.getComment());
+            }
+
+            return Optional.of(repo.save(existingMedia));
+        }
+
+        return Optional.empty();
+    }
+
+    public boolean deleteMedia(Long mediaId, Long userId) {
+        validateUser(userId);
+        Optional<Media> mediaOpt = repo.findById(mediaId);
+
+        if (mediaOpt.isPresent()) {
+            Media media = mediaOpt.get();
+
+            // Sicherheitscheck: Nur der Besitzer kann das Medium löschen
+            if (!media.getUser().getId().equals(userId)) {
+                throw new SecurityException("Sie können nur Ihre eigenen Medien löschen");
+            }
+
+            repo.deleteById(mediaId);
+            return true;
+        }
+
+        return false;
+    }
+
+    // ===== HILFSMETHODEN =====
+
+    private User validateUser(Long userId) {
         Optional<User> userOpt = userRepository.findById(userId);
-        return userOpt.map(User::getMediaList).orElseThrow(() -> new RuntimeException("Benutzer nicht gefunden"));
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("Benutzer mit ID " + userId + " nicht gefunden");
+        }
+        return userOpt.get();
+    }
+
+    // ===== LEGACY METHODEN (für Abwärtskompatibilität) =====
+
+    public List<Media> getAllMedias() {
+        return repo.findAll();
     }
 
     public List<Media> getWatchedMedias() {
@@ -32,15 +166,18 @@ public class MediaService {
         return repo.findByWatched(false);
     }
 
-    public Media addMedia(Media media, Long userId) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            media.setUser(user);
-            user.addMedia(media);
-            return repo.save(media);
-        }
-        throw new RuntimeException("Benutzer nicht gefunden");
+    public List<Media> getSeriesList() {
+        return repo.findByType(MediaType.SERIES);
+    }
+
+    public List<Media> getMoviesList() {
+        return repo.findByType(MediaType.MOVIE);
+    }
+
+    public Media addMedia(Media media) {
+        // Diese Methode sollte eigentlich deprecated werden,
+        // da sie keinen Benutzer zuweist
+        return repo.save(media);
     }
 
     public void deleteMedia(Long id) {
@@ -85,14 +222,6 @@ public class MediaService {
 
     public List<Media> getMediasByType(MediaType type) {
         return repo.findByType(type);
-    }
-
-    public List<Media> getSeriesByUser(Long userId) {
-        return repo.findByUserIdAndType(userId, MediaType.SERIES);
-    }
-
-    public List<Media> getMoviesByUser(Long userId) {
-        return repo.findByUserIdAndType(userId, MediaType.MOVIE);
     }
 
     public List<Media> getRatedMedias() {
