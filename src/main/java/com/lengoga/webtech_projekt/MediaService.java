@@ -11,14 +11,17 @@ import java.util.Optional;
 public class MediaService {
 
     private final MediaRepository repo;
+    private final UserRepository userRepository;
 
     @Autowired
-    public MediaService(MediaRepository mediaRepository) {
+    public MediaService(MediaRepository mediaRepository, UserRepository userRepository) {
         this.repo = mediaRepository;
+        this.userRepository = userRepository;
     }
 
-    public List<Media> getAllMedias() {
-        return repo.findAll();
+    public List<Media> getMediasByUser(Long userId) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        return userOpt.map(User::getMediaList).orElseThrow(() -> new RuntimeException("Benutzer nicht gefunden"));
     }
 
     public List<Media> getWatchedMedias() {
@@ -29,14 +32,15 @@ public class MediaService {
         return repo.findByWatched(false);
     }
 
-    public Media addMedia(Media media) {
-        if (media.getCreatedAt() == null) {
-            media.setCreatedAt(LocalDateTime.now());
+    public Media addMedia(Media media, Long userId) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            media.setUser(user);
+            user.addMedia(media);
+            return repo.save(media);
         }
-        if (media.getUpdatedAt() == null) {
-            media.setUpdatedAt(LocalDateTime.now());
-        }
-        return repo.save(media);
+        throw new RuntimeException("Benutzer nicht gefunden");
     }
 
     public void deleteMedia(Long id) {
@@ -83,12 +87,12 @@ public class MediaService {
         return repo.findByType(type);
     }
 
-    public List<Media> getSeriesList() {
-        return getMediasByType(MediaType.SERIES);
+    public List<Media> getSeriesByUser(Long userId) {
+        return repo.findByUserIdAndType(userId, MediaType.SERIES);
     }
 
-    public List<Media> getMoviesList() {
-        return getMediasByType(MediaType.MOVIE);
+    public List<Media> getMoviesByUser(Long userId) {
+        return repo.findByUserIdAndType(userId, MediaType.MOVIE);
     }
 
     public List<Media> getRatedMedias() {

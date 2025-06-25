@@ -1,260 +1,173 @@
 package com.lengoga.webtech_projekt;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @RestController
-@CrossOrigin(origins = {"https://meinvueprojekt2.onrender.com", "http://localhost:5173"})
-@RequestMapping("/watchlist")
-@SuppressWarnings("unused")
+@RequestMapping("/api/watchlist")
+@CrossOrigin
 public class MediaController {
 
-    private static final Logger logger = LoggerFactory.getLogger(MediaController.class);
-
     private final MediaService mediaService;
-    private final TmdbService tmdbService;
+    private final UserService userService;
 
-    public MediaController(MediaService mediaService, TmdbService tmdbService) {
+    @Autowired
+    public MediaController(MediaService mediaService, UserService userService) {
         this.mediaService = mediaService;
-        this.tmdbService = tmdbService;
+        this.userService = userService;
     }
 
-    @GetMapping
-    public List<Media> getWatchlist() {
+    // Benutzerbezogene Endpunkte
+    @GetMapping("/{userId}/all")
+    public ResponseEntity<List<Media>> getAllMediaByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(mediaService.getMediasByUser(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/{userId}/series")
+    public ResponseEntity<List<Media>> getSeriesByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(mediaService.getSeriesByUser(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/{userId}/movies")
+    public ResponseEntity<List<Media>> getMoviesByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(mediaService.getMoviesByUser(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @PostMapping("/{userId}/add")
+    public ResponseEntity<Media> addMedia(@PathVariable Long userId, @RequestBody Media media) {
+        try {
+            Media savedMedia = mediaService.addMedia(media, userId);
+            return ResponseEntity.ok(savedMedia);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @PutMapping("/{userId}/update/{mediaId}")
+    public ResponseEntity<Media> updateMedia(@PathVariable Long userId,
+                                             @PathVariable Long mediaId,
+                                             @RequestBody Media updatedMedia) {
+        try {
+            Optional<Media> result = mediaService.updateMedia(mediaId, updatedMedia, userId);
+            return result.map(ResponseEntity::ok)
+                    .orElseGet(() -> ResponseEntity.notFound().build());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @DeleteMapping("/{userId}/delete/{mediaId}")
+    public ResponseEntity<Void> deleteMedia(@PathVariable Long userId, @PathVariable Long mediaId) {
+        try {
+            boolean deleted = mediaService.deleteMedia(mediaId, userId);
+            return deleted ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @GetMapping("/{userId}/watched")
+    public ResponseEntity<List<Media>> getWatchedMediaByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(mediaService.getWatchedMediaByUser(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/{userId}/unwatched")
+    public ResponseEntity<List<Media>> getUnwatchedMediaByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(mediaService.getUnwatchedMediaByUser(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/{userId}/genres")
+    public ResponseEntity<List<Media>> getMediaByGenres(@PathVariable Long userId,
+                                                        @RequestParam List<String> genres) {
+        try {
+            return ResponseEntity.ok(mediaService.getMediaByGenres(userId, genres));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @GetMapping("/{userId}/rated")
+    public ResponseEntity<List<Media>> getRatedMediaByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(mediaService.getRatedMediaByUser(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/{userId}/top-rated")
+    public ResponseEntity<List<Media>> getTopRatedMediaByUser(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(mediaService.getTopRatedMediaByUser(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    @GetMapping("/{userId}/rating/{rating}")
+    public ResponseEntity<List<Media>> getMediaByRating(@PathVariable Long userId,
+                                                        @PathVariable Integer rating) {
+        try {
+            return ResponseEntity.ok(mediaService.getMediaByRating(userId, rating));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @GetMapping("/{userId}/rating-min/{minRating}")
+    public ResponseEntity<List<Media>> getMediaByMinRating(@PathVariable Long userId,
+                                                           @PathVariable Integer minRating) {
+        try {
+            return ResponseEntity.ok(mediaService.getMediaByMinRating(userId, minRating));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    // Legacy-Endpunkte für Abwärtskompatibilität oder Admin-Zwecke
+    // Diese könnten später entfernt oder mit Berechtigungsprüfungen versehen werden
+    @GetMapping("/all")
+    public List<Media> getAllMedia() {
         return mediaService.getAllMedias();
-    }
-
-    @PostMapping
-    public Media addMedia(@RequestBody Media media) {
-        return mediaService.addMedia(media);
-    }
-
-    @DeleteMapping("/{id}")
-    public void deleteMedia(@PathVariable Long id) {
-        mediaService.deleteMedia(id);
-    }
-
-    @PutMapping("/{id}")
-    public Media updateMedia(@PathVariable Long id, @RequestBody Media media) {
-        return mediaService.updateMedia(id, media);
-    }
-
-    @GetMapping("/watched")
-    public List<Media> getWatched() {
-        return mediaService.getWatchedMedias();
-    }
-
-    @GetMapping("/unwatched")
-    public List<Media> getUnwatched() {
-        return mediaService.getUnwatchedMedias();
-    }
-
-    @GetMapping("/movies")
-    public List<Media> getMovies() {
-        List<Media> movies = mediaService.getMoviesList();
-        logger.info("Filme gefunden: {}", movies.size());
-        movies.forEach(m -> logger.info("{} - Typ: {}", m.getTitle(), m.getType()));
-        return movies;
     }
 
     @GetMapping("/series")
     public List<Media> getSeries() {
-        List<Media> series = mediaService.getSeriesList();
-        logger.info("Serien gefunden: {}", series.size());
-        series.forEach(m -> logger.info("{} - Typ: {}", m.getTitle(), m.getType()));
-        return series;
+        return mediaService.getSeriesList();
     }
 
-    @GetMapping("/filter")
-    public List<Media> filterMedia(
-            @RequestParam(required = false) List<String> genres,
-            @RequestParam(required = false) MediaType type) {
-        return mediaService.filterMedia(genres, type);
+    @GetMapping("/movies")
+    public List<Media> getMovies() {
+        return mediaService.getMoviesList();
     }
 
-    @GetMapping("/rated")
-    public List<Media> getRatedMedias() {
-        return mediaService.getRatedMedias();
-    }
-
-    @PatchMapping("/{id}/rating")
-    public Media updateRating(@PathVariable Long id, @RequestBody RatingRequest request) {
-        return mediaService.updateRating(id, request.getRating(), request.getComment());
-    }
-
-    @GetMapping("/latest-rating-date")
-    public LatestRatingResponse getLatestRatingDate() {
-        LocalDateTime latestDate = mediaService.getLatestRatingDate();
-        return new LatestRatingResponse(latestDate);
-    }
-
-    @GetMapping("/{id}/trailer")
-    public ResponseEntity<TrailerResponse> getTrailer(@PathVariable Long id) {
-        Media media = mediaService.getMediaById(id);
-        if (media == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        if (media.getTrailerUrl() != null && !media.getTrailerUrl().isEmpty()) {
-            return ResponseEntity.ok(new TrailerResponse(media.getTrailerUrl()));
-        }
-
-        TmdbService.TmdbSearchResult result = tmdbService.searchMedia(media.getTitle(), media.getType().toString());
-        if (result != null && result.getTrailerUrl() != null) {
-            media.setTmdbId(result.getTmdbId());
-            media.setTrailerUrl(result.getTrailerUrl());
-            mediaService.saveMedia(media);
-            return ResponseEntity.ok(new TrailerResponse(result.getTrailerUrl()));
-        }
-
-        return ResponseEntity.ok(new TrailerResponse(null));
-    }
-
-    @GetMapping("/{id}/similar")
-    public ResponseEntity<SimilarMediaResponse> getSimilarMedia(@PathVariable Long id) {
-        Media media = mediaService.getMediaById(id);
-        if (media == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        Integer tmdbId = media.getTmdbId();
-        if (tmdbId == null) {
-            TmdbService.TmdbSearchResult searchResult = tmdbService.searchMedia(
-                    media.getTitle(),
-                    media.getType().toString()
-            );
-            if (searchResult != null) {
-                tmdbId = searchResult.getTmdbId();
-                media.setTmdbId(tmdbId);
-                mediaService.saveMedia(media);
-            }
-        }
-
-        List<TmdbService.SimilarMediaResult> similarMedia = tmdbService.getSimilarMedia(
-                tmdbId,
-                media.getType().toString()
-        );
-
-        return ResponseEntity.ok(new SimilarMediaResponse(similarMedia));
-    }
-
-    @GetMapping("/tmdb/{tmdbId}/details")
-    public ResponseEntity<TmdbDetailsResponse> getTmdbDetails(
-            @PathVariable Integer tmdbId,
-            @RequestParam String type) {
-
-        TmdbService.TmdbDetailsResult details = tmdbService.getMediaDetails(tmdbId, type);
-        if (details != null) {
-            return ResponseEntity.ok(new TmdbDetailsResponse(
-                    details.getTitle(),
-                    details.getGenre(),
-                    details.getOverview(),
-                    details.getPosterUrl()
-            ));
-        }
-        return ResponseEntity.notFound().build();
-    }
-
-    @PostMapping("/search-tmdb")
-    public TmdbSearchResponse searchTmdb(@RequestBody TmdbSearchRequest request) {
-        TmdbService.TmdbSearchResult result = tmdbService.searchMedia(request.getTitle(), request.getType());
-        if (result != null) {
-            return new TmdbSearchResponse(result.getTmdbId(), result.getTrailerUrl(), true);
-        }
-        return new TmdbSearchResponse(null, null, false);
-    }
-
-    public static class RatingRequest {
-        private Integer rating;
-        private String comment;
-
-        public Integer getRating() { return rating; }
-        public void setRating(Integer rating) { this.rating = rating; }
-        public String getComment() { return comment; }
-        public void setComment(String comment) { this.comment = comment; }
-    }
-
-    public static class LatestRatingResponse {
-        private final LocalDateTime latestRatingDate;
-
-        public LatestRatingResponse(LocalDateTime latestRatingDate) {
-            this.latestRatingDate = latestRatingDate;
-        }
-
-        public LocalDateTime getLatestRatingDate() { return latestRatingDate; }
-    }
-
-    public static class TrailerResponse {
-        private final String trailerUrl;
-
-        public TrailerResponse(String trailerUrl) {
-            this.trailerUrl = trailerUrl;
-        }
-
-        public String getTrailerUrl() {
-            return trailerUrl;
-        }
-    }
-
-    public static class TmdbSearchRequest {
-        private String title;
-        private String type;
-
-        public String getTitle() { return title; }
-        public void setTitle(String title) { this.title = title; }
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-    }
-
-    public static class TmdbSearchResponse {
-        private final Integer tmdbId;
-        private final String trailerUrl;
-        private final boolean found;
-
-        public TmdbSearchResponse(Integer tmdbId, String trailerUrl, boolean found) {
-            this.tmdbId = tmdbId;
-            this.trailerUrl = trailerUrl;
-            this.found = found;
-        }
-
-        public Integer getTmdbId() { return tmdbId; }
-        public String getTrailerUrl() { return trailerUrl; }
-        public boolean isFound() { return found; }
-    }
-
-    public static class SimilarMediaResponse {
-        private final List<TmdbService.SimilarMediaResult> similarMedia;
-
-        public SimilarMediaResponse(List<TmdbService.SimilarMediaResult> similarMedia) {
-            this.similarMedia = similarMedia;
-        }
-
-        public List<TmdbService.SimilarMediaResult> getSimilarMedia() {
-            return similarMedia;
-        }
-    }
-
-    public static class TmdbDetailsResponse {
-        private final String title;
-        private final String genre;
-        private final String overview;
-        private final String posterUrl;
-
-        public TmdbDetailsResponse(String title, String genre, String overview, String posterUrl) {
-            this.title = title;
-            this.genre = genre;
-            this.overview = overview;
-            this.posterUrl = posterUrl;
-        }
-
-        public String getTitle() { return title; }
-        public String getGenre() { return genre; }
-        public String getOverview() { return overview; }
-        public String getPosterUrl() { return posterUrl; }
+    @PostMapping("/add")
+    public Media addMedia(@RequestBody Media media) {
+        return mediaService.addMedia(media);
     }
 }

@@ -1,5 +1,6 @@
 package com.lengoga.webtech_projekt;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -13,6 +14,11 @@ public class Media {
     private String genre;
     private boolean watched;
     private Integer rating;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    @JsonIgnore
+    private User user;
 
     @Column(length = 1000)
     private String comment;
@@ -164,5 +170,13 @@ public class Media {
         this.comment = comment;
         this.ratingDate = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }
