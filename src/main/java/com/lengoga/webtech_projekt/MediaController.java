@@ -114,6 +114,55 @@ public class MediaController {
         return ResponseEntity.ok(new TrailerResponse(null));
     }
 
+    // NEU: Ähnliche Medien Endpoint
+    @GetMapping("/{id}/similar")
+    public ResponseEntity<SimilarMediaResponse> getSimilarMedia(@PathVariable Long id) {
+        Media media = mediaService.getMediaById(id);
+        if (media == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // Falls keine TMDB-ID gespeichert ist, versuchen zu finden
+        Integer tmdbId = media.getTmdbId();
+        if (tmdbId == null) {
+            TmdbService.TmdbSearchResult searchResult = tmdbService.searchMedia(
+                    media.getTitle(),
+                    media.getType().toString()
+            );
+            if (searchResult != null) {
+                tmdbId = searchResult.getTmdbId();
+                // TMDB-ID für zukünftige Verwendung speichern
+                media.setTmdbId(tmdbId);
+                mediaService.saveMedia(media);
+            }
+        }
+
+        List<TmdbService.SimilarMediaResult> similarMedia = tmdbService.getSimilarMedia(
+                tmdbId,
+                media.getType().toString()
+        );
+
+        return ResponseEntity.ok(new SimilarMediaResponse(similarMedia));
+    }
+
+    // NEU: Media Details mit Genre von TMDB abrufen
+    @GetMapping("/tmdb/{tmdbId}/details")
+    public ResponseEntity<TmdbDetailsResponse> getTmdbDetails(
+            @PathVariable Integer tmdbId,
+            @RequestParam String type) {
+
+        TmdbService.TmdbDetailsResult details = tmdbService.getMediaDetails(tmdbId, type);
+        if (details != null) {
+            return ResponseEntity.ok(new TmdbDetailsResponse(
+                    details.getTitle(),
+                    details.getGenre(),
+                    details.getOverview(),
+                    details.getPosterUrl()
+            ));
+        }
+        return ResponseEntity.notFound().build();
+    }
+
     @PostMapping("/search-tmdb")
     public TmdbSearchResponse searchTmdb(@RequestBody TmdbSearchRequest request) {
         TmdbService.TmdbSearchResult result = tmdbService.searchMedia(request.getTitle(), request.getType());
@@ -187,5 +236,46 @@ public class MediaController {
         public void setTrailerUrl(String trailerUrl) { this.trailerUrl = trailerUrl; }
         public boolean isFound() { return found; }
         public void setFound(boolean found) { this.found = found; }
+    }
+
+    // NEU: Response-Klasse für ähnliche Medien
+    public static class SimilarMediaResponse {
+        private List<TmdbService.SimilarMediaResult> similarMedia;
+
+        public SimilarMediaResponse(List<TmdbService.SimilarMediaResult> similarMedia) {
+            this.similarMedia = similarMedia;
+        }
+
+        public List<TmdbService.SimilarMediaResult> getSimilarMedia() {
+            return similarMedia;
+        }
+
+        public void setSimilarMedia(List<TmdbService.SimilarMediaResult> similarMedia) {
+            this.similarMedia = similarMedia;
+        }
+    }
+
+    // NEU: Response-Klasse für TMDB Details
+    public static class TmdbDetailsResponse {
+        private String title;
+        private String genre;
+        private String overview;
+        private String posterUrl;
+
+        public TmdbDetailsResponse(String title, String genre, String overview, String posterUrl) {
+            this.title = title;
+            this.genre = genre;
+            this.overview = overview;
+            this.posterUrl = posterUrl;
+        }
+
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public String getGenre() { return genre; }
+        public void setGenre(String genre) { this.genre = genre; }
+        public String getOverview() { return overview; }
+        public void setOverview(String overview) { this.overview = overview; }
+        public String getPosterUrl() { return posterUrl; }
+        public void setPosterUrl(String posterUrl) { this.posterUrl = posterUrl; }
     }
 }
