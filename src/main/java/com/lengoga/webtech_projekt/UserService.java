@@ -50,6 +50,14 @@ public class UserService {
         return userRepository.existsById(userId);
     }
 
+    public User validateAndGetUser(Long userId) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            throw new RuntimeException("Benutzer mit ID " + userId + " nicht gefunden");
+        }
+        return userOpt.get();
+    }
+
     public User updateUser(Long userId, String newUsername, String newPassword) {
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isPresent()) {

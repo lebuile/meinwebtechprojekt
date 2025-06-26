@@ -5,7 +5,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -15,14 +17,177 @@ public class MediaController {
 
     private final MediaService mediaService;
     private final UserService userService;
+    private final TmdbService tmdbService;
 
     @Autowired
-    public MediaController(MediaService mediaService, UserService userService) {
+    public MediaController(MediaService mediaService, UserService userService, TmdbService tmdbService) {
         this.mediaService = mediaService;
         this.userService = userService;
+        this.tmdbService = tmdbService;
     }
 
-    // Benutzerbezogene Endpunkte
+
+    // 1. TRAILER ENDPUNKT
+    @GetMapping("/{mediaId}/trailer")
+    public ResponseEntity<?> getTrailer(@PathVariable Long mediaId) {
+        try {
+            Media media = mediaService.getMediaById(mediaId);
+            if (media == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            String trailerUrl = null;
+
+            // Wenn Medium bereits eine Trailer-URL hat, verwende diese
+            if (media.getTrailerUrl() != null && !media.getTrailerUrl().trim().isEmpty()) {
+                trailerUrl = media.getTrailerUrl();
+            } else {
+                // Ansonsten von TMDB abrufen
+                if (media.getTmdbId() != null) {
+                    trailerUrl = tmdbService.getTrailerUrl(media.getTmdbId(), media.getType().toString());
+
+                    // Trailer-URL in Datenbank speichern für zukünftige Aufrufe
+                    if (trailerUrl != null) {
+                        media.setTrailerUrl(trailerUrl);
+                        mediaService.saveMedia(media);
+                    }
+                } else {
+                    // Fallback: Suche nach Titel
+                    var searchResult = tmdbService.searchMedia(media.getTitle(), media.getType().toString());
+                    if (searchResult != null) {
+                        trailerUrl = searchResult.getTrailerUrl();
+                        // Optional: TMDB ID auch speichern
+                        media.setTmdbId(searchResult.getTmdbId());
+                        media.setTrailerUrl(trailerUrl);
+                        mediaService.saveMedia(media);
+                    }
+                }
+            }
+
+            return ResponseEntity.ok(Map.of("trailerUrl", trailerUrl));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Fehler beim Laden des Trailers: " + e.getMessage()));
+        }
+    }
+
+    // 2. SIMILAR MEDIA ENDPUNKT
+    @GetMapping("/{mediaId}/similar")
+    public ResponseEntity<?> getSimilarMedia(@PathVariable Long mediaId) {
+        try {
+            Media media = mediaService.getMediaById(mediaId);
+            if (media == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            List<TmdbService.SimilarMediaResult> similarMedia = new ArrayList<>();
+
+            if (media.getTmdbId() != null) {
+                // Verwende TMDB ID wenn vorhanden
+                similarMedia = tmdbService.getSimilarMedia(media.getTmdbId(), media.getType().toString());
+            } else {
+                // Fallback: Erst nach Medium suchen, dann ähnliche finden
+                var searchResult = tmdbService.searchMedia(media.getTitle(), media.getType().toString());
+                if (searchResult != null && searchResult.getTmdbId() != null) {
+                    // TMDB ID speichern für zukünftige Aufrufe
+                    media.setTmdbId(searchResult.getTmdbId());
+                    mediaService.saveMedia(media);
+
+                    similarMedia = tmdbService.getSimilarMedia(searchResult.getTmdbId(), media.getType().toString());
+                }
+            }
+
+            return ResponseEntity.ok(Map.of("similarMedia", similarMedia));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Fehler beim Laden ähnlicher Medien: " + e.getMessage()));
+        }
+    }
+
+    // 3. TMDB DETAILS ENDPUNKT
+    @GetMapping("/tmdb/{tmdbId}/details")
+    public ResponseEntity<?> getTmdbDetails(@PathVariable Integer tmdbId, @RequestParam String type) {
+        try {
+            TmdbService.TmdbDetailsResult details = tmdbService.getMediaDetails(tmdbId, type);
+
+            if (details == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            return ResponseEntity.ok(details);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Fehler beim Abrufen der TMDB-Details: " + e.getMessage()));
+        }
+    }
+
+    // 4. LATEST RATING DATE ENDPUNKT (fehlte auch)
+    @GetMapping("/{userId}/latest-rating-date")
+    public ResponseEntity<?> getLatestRatingDate(@PathVariable Long userId) {
+        try {
+            // Validiere User
+            if (!userService.validateUser(userId)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Hole das neueste Rating-Datum für den User
+            List<Media> ratedMedias = mediaService.getRatedMediaByUser(userId);
+            String latestRatingDate = ratedMedias.stream()
+                    .map(Media::getRatingDate)
+                    .filter(date -> date != null)
+                    .max((date1, date2) -> date1.compareTo(date2))
+                    .map(date -> date.toString())
+                    .orElse(null);
+
+            return ResponseEntity.ok(Map.of("latestRatingDate", latestRatingDate));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Fehler beim Laden des letzten Bewertungsdatums: " + e.getMessage()));
+        }
+    }
+
+    // 5. RATING UPDATE ENDPUNKT (fehlte auch)
+    @PatchMapping("/{userId}/update/{mediaId}/rating")
+    public ResponseEntity<?> updateRating(@PathVariable Long userId,
+                                          @PathVariable Long mediaId,
+                                          @RequestBody Map<String, Object> ratingData) {
+        try {
+            // Validiere User
+            if (!userService.validateUser(userId)) {
+                return ResponseEntity.notFound().build();
+            }
+
+            Media media = mediaService.getMediaById(mediaId);
+            if (media == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            // Sicherheitscheck: Nur der Besitzer kann das Medium bewerten
+            if (!media.getUser().getId().equals(userId)) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of("error", "Sie können nur Ihre eigenen Medien bewerten"));
+            }
+
+            // Rating und Kommentar aus Request extrahieren
+            Integer rating = null;
+            if (ratingData.get("rating") != null) {
+                rating = (Integer) ratingData.get("rating");
+            }
+            String comment = (String) ratingData.get("comment");
+
+            // Rating aktualisieren
+            media.updateRatingWithDate(rating, comment);
+            Media updatedMedia = mediaService.saveMedia(media);
+
+            return ResponseEntity.ok(updatedMedia);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Fehler beim Aktualisieren der Bewertung: " + e.getMessage()));
+        }
+    }
+
+    // ===== BESTEHENDE BENUTZERBEZOGENE ENDPUNKTE =====
+
     @GetMapping("/{userId}/all")
     public ResponseEntity<List<Media>> getAllMediaByUser(@PathVariable Long userId) {
         try {
@@ -149,8 +314,7 @@ public class MediaController {
         }
     }
 
-    // Legacy-Endpunkte für Abwärtskompatibilität oder Admin-Zwecke
-    // Diese könnten später entfernt oder mit Berechtigungsprüfungen versehen werden
+    // ===== LEGACY-ENDPUNKTE FÜR ABWÄRTSKOMPATIBILITÄT =====
     @GetMapping("/all")
     public List<Media> getAllMedia() {
         return mediaService.getAllMedias();
