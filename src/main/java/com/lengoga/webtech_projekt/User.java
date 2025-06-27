@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "app_users") // Vermeide "user" als Tabellenname
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
