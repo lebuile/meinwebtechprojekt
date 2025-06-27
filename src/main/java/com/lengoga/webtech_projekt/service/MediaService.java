@@ -1,5 +1,10 @@
-package com.lengoga.webtech_projekt;
+package com.lengoga.webtech_projekt.service;
 
+import com.lengoga.webtech_projekt.MediaType;
+import com.lengoga.webtech_projekt.model.entity.Media;
+import com.lengoga.webtech_projekt.model.entity.User;
+import com.lengoga.webtech_projekt.repository.MediaRepository;
+import com.lengoga.webtech_projekt.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

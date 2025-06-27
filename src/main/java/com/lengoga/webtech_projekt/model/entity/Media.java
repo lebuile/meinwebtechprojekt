@@ -1,6 +1,7 @@
-package com.lengoga.webtech_projekt;
+package com.lengoga.webtech_projekt.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.lengoga.webtech_projekt.MediaType;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 

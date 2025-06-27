@@ -1,5 +1,7 @@
-package com.lengoga.webtech_projekt;
+package com.lengoga.webtech_projekt.repository;
 
+import com.lengoga.webtech_projekt.MediaType;
+import com.lengoga.webtech_projekt.model.entity.Media;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;

@@ -1,4 +1,4 @@
-package com.lengoga.webtech_projekt;
+package com.lengoga.webtech_projekt.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;

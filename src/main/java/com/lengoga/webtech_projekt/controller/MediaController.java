@@ -1,5 +1,9 @@
-package com.lengoga.webtech_projekt;
+package com.lengoga.webtech_projekt.controller;
 
+import com.lengoga.webtech_projekt.model.entity.Media;
+import com.lengoga.webtech_projekt.service.MediaService;
+import com.lengoga.webtech_projekt.service.TmdbService;
+import com.lengoga.webtech_projekt.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
