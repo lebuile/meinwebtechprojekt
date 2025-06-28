@@ -26,7 +26,98 @@ public class AuthController {
         this.emailService = emailService;
     }
 
-    // Bestehende register- und login-Methoden bleiben unverändert...
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody Map<String, String> request) {
+        try {
+            String username = request.get("username");
+            String password = request.get("password");
+
+            System.out.println("Login-Versuch für: " + username);
+
+            if (username == null || password == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Benutzername und Passwort sind erforderlich"
+                ));
+            }
+
+            // Verwende die UserService Login-Logik (die bereits den PasswordEncoder hat)
+            Optional<User> userOpt = userService.findByUsername(username);
+            if (userOpt.isEmpty()) {
+                userOpt = userService.findByEmail(username);
+            }
+
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+                System.out.println("Benutzer gefunden: " + user.getUsername());
+
+                // Verwende UserService für Passwort-Prüfung
+                Optional<User> loginResult = userService.verifyLogin(user.getEmail(), password);
+                if (loginResult.isPresent()) {
+                    System.out.println("Login erfolgreich für: " + username);
+                    return ResponseEntity.ok(Map.of(
+                            "id", user.getId(),
+                            "username", user.getUsername(),
+                            "email", user.getEmail()
+                    ));
+                }
+            }
+
+            System.out.println("Login fehlgeschlagen für: " + username);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", "Ungültige Anmeldedaten"
+            ));
+
+        } catch (Exception e) {
+            System.err.println("Login Fehler: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "error", "Ein Fehler ist aufgetreten"
+            ));
+        }
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@RequestBody Map<String, String> request) {
+        try {
+            String username = request.get("username");
+            String password = request.get("password");
+
+            System.out.println("Registrierung für: " + username);
+
+            if (username == null || password == null) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "error", "Benutzername und Passwort sind erforderlich"
+                ));
+            }
+
+            // Verwende Username als Email mit Domain
+            String email = username + "@watchlist.local";
+
+            User user = userService.registerUser(username, email, password);
+
+            System.out.println("Registrierung erfolgreich für: " + username);
+
+            // Gib User-Objekt zurück (ohne Passwort)
+            return ResponseEntity.ok(Map.of(
+                    "id", user.getId(),
+                    "username", user.getUsername(),
+                    "email", user.getEmail()
+            ));
+        } catch (RuntimeException e) {
+            System.err.println("Registrierung Fehler: " + e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                    "error", e.getMessage()
+            ));
+        } catch (Exception e) {
+            System.err.println("Register Fehler: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "error", "Ein Fehler ist aufgetreten"
+            ));
+        }
+    }
+
 
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {

@@ -296,37 +296,82 @@ public class TmdbService {
     public String getTrailerUrl(Integer tmdbId, String type) {
         if (tmdbId == null) return null;
 
-        String endpoint = type.equals("MOVIE") ? "/movie/" : "/tv/";
-        String url = UriComponentsBuilder.fromHttpUrl(BASE_URL + endpoint + tmdbId + "/videos")
-                .queryParam("api_key", apiKey)
-                .queryParam("language", "de-DE")
-                .toUriString();
+        // Versuche verschiedene Sprachen: Deutsch, Englisch, alle
+        String[] languages = {"de-DE", "en-US", ""};
 
-        try {
-            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
-            if (response != null && response.containsKey("results")) {
-                List<Map<String, Object>> videos = (List<Map<String, Object>>) response.get("results");
+        for (String language : languages) {
+            System.out.println("🌍 Suche Trailer für TMDB ID " + tmdbId + " (" + type + ") in Sprache: " +
+                    (language.isEmpty() ? "Alle" : language));
 
-                for (Map<String, Object> video : videos) {
-                    String site = (String) video.get("site");
-                    String videoType = (String) video.get("type");
-                    if ("YouTube".equals(site) && "Trailer".equals(videoType)) {
-                        String key = (String) video.get("key");
-                        return "https://www.youtube.com/watch?v=" + key;
-                    }
-                }
+            String endpoint = type.equals("MOVIE") ? "/movie/" : "/tv/";
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(BASE_URL + endpoint + tmdbId + "/videos")
+                    .queryParam("api_key", apiKey);
 
-                if (!videos.isEmpty()) {
-                    Map<String, Object> firstVideo = videos.get(0);
-                    if ("YouTube".equals(firstVideo.get("site"))) {
-                        String key = (String) firstVideo.get("key");
-                        return "https://www.youtube.com/watch?v=" + key;
-                    }
-                }
+            if (!language.isEmpty()) {
+                builder.queryParam("language", language);
             }
-        } catch (Exception e) {
-            System.err.println("Fehler beim Abrufen der Videos: " + e.getMessage());
+
+            String url = builder.toUriString();
+
+            try {
+                Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+                if (response != null && response.containsKey("results")) {
+                    List<Map<String, Object>> videos = (List<Map<String, Object>>) response.get("results");
+
+                    System.out.println("📹 Videos gefunden (" + language + "): " + videos.size());
+
+                    if (!videos.isEmpty()) {
+                        // Prioritäten für Video-Typen (von höchster zu niedrigster Priorität)
+                        String[] preferredTypes = {
+                                "Trailer",
+                                "Official Trailer",
+                                "Teaser",
+                                "Clip",
+                                "Featurette",
+                                "Opening Credits",
+                                "Behind the Scenes"
+                        };
+
+                        // Versuche die bevorzugten Typen in Reihenfolge
+                        for (String preferredType : preferredTypes) {
+                            for (Map<String, Object> video : videos) {
+                                String site = (String) video.get("site");
+                                String videoType = (String) video.get("type");
+                                String name = (String) video.get("name");
+
+                                if ("YouTube".equals(site) && preferredType.equals(videoType)) {
+                                    String key = (String) video.get("key");
+                                    String trailerUrl = "https://www.youtube.com/watch?v=" + key;
+                                    System.out.println("✅ " + preferredType + " gefunden (" + language + "): " + name);
+                                    return trailerUrl;
+                                }
+                            }
+                        }
+
+                        // Fallback: Nimm das erste YouTube Video, egal welcher Typ
+                        for (Map<String, Object> video : videos) {
+                            String site = (String) video.get("site");
+                            if ("YouTube".equals(site)) {
+                                String key = (String) video.get("key");
+                                String name = (String) video.get("name");
+                                String videoType = (String) video.get("type");
+                                String trailerUrl = "https://www.youtube.com/watch?v=" + key;
+                                System.out.println("🔄 Fallback Video verwendet (" + language + "): " + name + " (" + videoType + ")");
+                                return trailerUrl;
+                            }
+                        }
+
+                        System.out.println("❌ Keine YouTube Videos in " + language);
+                    } else {
+                        System.out.println("❌ Keine Videos verfügbar in " + language);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("❌ Fehler bei Sprache " + language + ": " + e.getMessage());
+            }
         }
+
+        System.out.println("❌ Kein Trailer gefunden für " + type + " ID " + tmdbId + " in allen Sprachen");
         return null;
     }
 

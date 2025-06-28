@@ -39,8 +39,11 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<?> loginUser(@RequestBody LoginRequest request) {
         Optional<User> userOpt = userService.verifyLogin(request.getEmail(), request.getPassword());
-        return userOpt
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.badRequest().body("Ungültige Anmeldedaten"));
+
+        if (userOpt.isPresent()) {
+            return ResponseEntity.ok(userOpt.get());
+        } else {
+            return ResponseEntity.badRequest().body("Ungültige Anmeldedaten");
+        }
     }
 }
