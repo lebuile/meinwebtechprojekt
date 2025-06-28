@@ -30,6 +30,52 @@ public class MediaController {
         this.tmdbService = tmdbService;
     }
 
+    // NEU: WHERE TO WATCH ENDPUNKT
+    @GetMapping("/{mediaId}/where-to-watch")
+    public ResponseEntity<?> getWhereToWatch(@PathVariable Long mediaId) {
+        try {
+            Media media = mediaService.getMediaById(mediaId);
+            if (media == null) {
+                return ResponseEntity.notFound().build();
+            }
+
+            TmdbService.WhereToWatchResult whereToWatch = null;
+
+            // Wenn Medium bereits eine TMDB ID hat, verwende diese
+            if (media.getTmdbId() != null) {
+                whereToWatch = tmdbService.getWhereToWatch(media.getTmdbId(), media.getType().toString());
+            } else {
+                // Ansonsten erst nach Medium suchen
+                var searchResult = tmdbService.searchMedia(media.getTitle(), media.getType().toString());
+                if (searchResult != null && searchResult.getTmdbId() != null) {
+                    // TMDB ID speichern für zukünftige Aufrufe
+                    media.setTmdbId(searchResult.getTmdbId());
+                    mediaService.saveMedia(media);
+
+                    whereToWatch = tmdbService.getWhereToWatch(searchResult.getTmdbId(), media.getType().toString());
+                }
+            }
+
+            if (whereToWatch != null) {
+                return ResponseEntity.ok(whereToWatch);
+            } else {
+                return ResponseEntity.ok(Map.of(
+                        "flatrate", new ArrayList<>(),
+                        "rent", new ArrayList<>(),
+                        "buy", new ArrayList<>(),
+                        "link", null,
+                        "region", "DE",
+                        "message", "Keine Streaming-Informationen verfügbar"
+                ));
+            }
+
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "Fehler beim Laden der Streaming-Informationen: " + e.getMessage()));
+        }
+    }
+
+    // ===== BESTEHENDE ENDPUNKTE =====
 
     // 1. TRAILER ENDPUNKT
     @GetMapping("/{mediaId}/trailer")
@@ -125,7 +171,7 @@ public class MediaController {
         }
     }
 
-    // 4. LATEST RATING DATE ENDPUNKT (fehlte auch)
+    // 4. LATEST RATING DATE ENDPUNKT
     @GetMapping("/{userId}/latest-rating-date")
     public ResponseEntity<?> getLatestRatingDate(@PathVariable Long userId) {
         try {
@@ -150,7 +196,7 @@ public class MediaController {
         }
     }
 
-    // 5. RATING UPDATE ENDPUNKT (fehlte auch)
+    // 5. RATING UPDATE ENDPUNKT
     @PatchMapping("/{userId}/update/{mediaId}/rating")
     public ResponseEntity<?> updateRating(@PathVariable Long userId,
                                           @PathVariable Long mediaId,
