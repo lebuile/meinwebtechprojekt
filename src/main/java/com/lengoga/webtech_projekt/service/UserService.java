@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -30,8 +31,33 @@ public class UserService {
 
     // ===== BENUTZER FINDEN =====
 
+    public List<User> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        System.out.println("📋 Alle User geladen: " + users.size() + " gefunden");
+        users.forEach(user ->
+                System.out.println("  - ID: " + user.getId() + ", Username: " + user.getUsername() + ", Email: " + user.getEmail())
+        );
+        return users;
+    }
+
     public Optional<User> findById(Long userId) {
-        return userRepository.findById(userId);
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            System.out.println("✅ User gefunden: ID " + userId + " - " + userOpt.get().getUsername());
+        } else {
+            System.err.println("❌ User mit ID " + userId + " nicht gefunden");
+            // Zeige verfügbare User IDs
+            List<User> allUsers = userRepository.findAll();
+            if (!allUsers.isEmpty()) {
+                System.err.println("Verfügbare User IDs:");
+                allUsers.forEach(user ->
+                        System.err.println("  - ID: " + user.getId() + " (" + user.getUsername() + ")")
+                );
+            } else {
+                System.err.println("❌ Keine User in der Datenbank gefunden!");
+            }
+        }
+        return userOpt;
     }
 
     public Optional<User> findByUsername(String username) {
@@ -45,7 +71,26 @@ public class UserService {
     // ===== LOGIN VALIDIERUNG =====
 
     public boolean validateUser(Long userId) {
-        return userRepository.existsById(userId);
+        if (userId == null) {
+            System.err.println("❌ User-Validierung fehlgeschlagen: userId ist null");
+            return false;
+        }
+
+        boolean exists = userRepository.existsById(userId);
+        if (exists) {
+            System.out.println("✅ User ID " + userId + " validiert");
+        } else {
+            System.err.println("❌ User ID " + userId + " existiert nicht");
+            // Debug: Zeige verfügbare IDs
+            List<User> allUsers = userRepository.findAll();
+            System.err.println("Verfügbare User IDs: " +
+                    allUsers.stream()
+                            .map(u -> u.getId().toString())
+                            .reduce((a, b) -> a + ", " + b)
+                            .orElse("keine")
+            );
+        }
+        return exists;
     }
 
     // Legacy Login-Methode (für UserController)
@@ -54,8 +99,13 @@ public class UserService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             if (passwordEncoder.matches(password, user.getPassword())) {
+                System.out.println("✅ Login erfolgreich für User: " + user.getUsername() + " (ID: " + user.getId() + ")");
                 return Optional.of(user);
+            } else {
+                System.err.println("❌ Login fehlgeschlagen: Falsches Passwort für " + email);
             }
+        } else {
+            System.err.println("❌ Login fehlgeschlagen: User mit Email " + email + " nicht gefunden");
         }
         return Optional.empty();
     }
@@ -87,7 +137,10 @@ public class UserService {
         }
 
         User user = new User(username, email, passwordEncoder.encode(password));
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        System.out.println("✅ Neuer User registriert: " + savedUser.getUsername() + " (ID: " + savedUser.getId() + ")");
+        return savedUser;
     }
 
     // ===== PASSWORT RESET =====
@@ -134,5 +187,26 @@ public class UserService {
         } catch (Exception e) {
             // Ignoriere Fehler beim Löschen des Tokens
         }
+    }
+
+    // ===== DEBUG METHODEN =====
+
+    public void debugUserState() {
+        List<User> allUsers = getAllUsers();
+        System.out.println("\n=== USER DEBUG INFO ===");
+        System.out.println("Anzahl User in DB: " + allUsers.size());
+
+        if (allUsers.isEmpty()) {
+            System.out.println("❌ KEINE USER GEFUNDEN! Führe DataInitializer aus.");
+        } else {
+            System.out.println("Verfügbare User:");
+            allUsers.forEach(user -> {
+                System.out.println("  📱 ID: " + user.getId() +
+                        " | Username: " + user.getUsername() +
+                        " | Email: " + user.getEmail() +
+                        " | Medien: " + user.getMediaList().size());
+            });
+        }
+        System.out.println("========================\n");
     }
 }

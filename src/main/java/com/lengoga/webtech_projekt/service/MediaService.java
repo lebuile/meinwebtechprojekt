@@ -24,45 +24,48 @@ public class MediaService {
         this.userRepository = userRepository;
     }
 
-    // ===== BENUTZERSPEZIFISCHE METHODEN =====
+    // ===== VERBESSERTE BENUTZERSPEZIFISCHE METHODEN =====
 
     public List<Media> getMediasByUser(Long userId) {
-        validateUser(userId);
+        User user = validateUserWithException(userId);
+        System.out.println("✅ Lade alle Medien für User: " + user.getUsername() + " (ID: " + userId + ")");
         return repo.findByUserId(userId);
     }
 
     public List<Media> getWatchedMediaByUser(Long userId) {
-        validateUser(userId);
+        validateUserWithException(userId);
         return repo.findByUserIdAndWatched(userId, true);
     }
 
     public List<Media> getUnwatchedMediaByUser(Long userId) {
-        validateUser(userId);
+        validateUserWithException(userId);
         return repo.findByUserIdAndWatched(userId, false);
     }
 
     public List<Media> getSeriesByUser(Long userId) {
-        validateUser(userId);
+        validateUserWithException(userId);
         return repo.findByUserIdAndType(userId, MediaType.SERIES);
     }
 
     public List<Media> getMoviesByUser(Long userId) {
-        validateUser(userId);
+        validateUserWithException(userId);
         return repo.findByUserIdAndType(userId, MediaType.MOVIE);
     }
 
     public List<Media> getRatedMediaByUser(Long userId) {
-        validateUser(userId);
-        return repo.findByUserIdAndRatingIsNotNull(userId);
+        User user = validateUserWithException(userId);
+        List<Media> ratedMedias = repo.findByUserIdAndRatingIsNotNull(userId);
+        System.out.println("✅ Lade bewertete Medien für User: " + user.getUsername() + " - Anzahl: " + ratedMedias.size());
+        return ratedMedias;
     }
 
     public List<Media> getTopRatedMediaByUser(Long userId) {
-        validateUser(userId);
+        validateUserWithException(userId);
         return repo.findByUserIdAndRatingIsNotNullOrderByRatingDesc(userId);
     }
 
     public List<Media> getMediaByRating(Long userId, Integer rating) {
-        validateUser(userId);
+        validateUserWithException(userId);
         if (rating < 1 || rating > 5) {
             throw new IllegalArgumentException("Rating muss zwischen 1 und 5 liegen");
         }
@@ -70,7 +73,7 @@ public class MediaService {
     }
 
     public List<Media> getMediaByMinRating(Long userId, Integer minRating) {
-        validateUser(userId);
+        validateUserWithException(userId);
         if (minRating < 1 || minRating > 5) {
             throw new IllegalArgumentException("Rating muss zwischen 1 und 5 liegen");
         }
@@ -78,7 +81,7 @@ public class MediaService {
     }
 
     public List<Media> getMediaByGenres(Long userId, List<String> genres) {
-        validateUser(userId);
+        validateUserWithException(userId);
         if (genres == null || genres.isEmpty()) {
             return repo.findByUserId(userId);
         }
@@ -86,13 +89,14 @@ public class MediaService {
     }
 
     public Media addMedia(Media media, Long userId) {
-        User user = validateUser(userId);
+        User user = validateUserWithException(userId);
         media.setUser(user);
+        System.out.println("✅ Füge Medium hinzu für User: " + user.getUsername() + " - Titel: " + media.getTitle());
         return repo.save(media);
     }
 
     public Optional<Media> updateMedia(Long mediaId, Media updatedMedia, Long userId) {
-        validateUser(userId);
+        validateUserWithException(userId);
         Optional<Media> existingMediaOpt = repo.findById(mediaId);
 
         if (existingMediaOpt.isPresent()) {
@@ -129,7 +133,7 @@ public class MediaService {
     }
 
     public boolean deleteMedia(Long mediaId, Long userId) {
-        validateUser(userId);
+        validateUserWithException(userId);
         Optional<Media> mediaOpt = repo.findById(mediaId);
 
         if (mediaOpt.isPresent()) {
@@ -147,14 +151,50 @@ public class MediaService {
         return false;
     }
 
-    // ===== HILFSMETHODEN =====
+    // ===== VERBESSERTE HILFSMETHODEN =====
 
-    private User validateUser(Long userId) {
+    /**
+     * Validiert einen User und wirft eine Exception mit detaillierter Fehlermeldung
+     */
+    private User validateUserWithException(Long userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID darf nicht null sein");
+        }
+
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
-            throw new RuntimeException("Benutzer mit ID " + userId + " nicht gefunden");
+            // Sammle verfügbare User IDs für bessere Fehlermeldung
+            List<User> allUsers = userRepository.findAll();
+            String availableIds = allUsers.stream()
+                    .map(u -> u.getId() + " (" + u.getUsername() + ")")
+                    .reduce((a, b) -> a + ", " + b)
+                    .orElse("keine");
+
+            String errorMsg = String.format(
+                    "❌ User mit ID %d nicht gefunden. Verfügbare User: %s",
+                    userId, availableIds
+            );
+
+            System.err.println(errorMsg);
+            throw new RuntimeException(errorMsg);
         }
-        return userOpt.get();
+
+        User user = userOpt.get();
+        System.out.println("✅ User validiert: " + user.getUsername() + " (ID: " + userId + ")");
+        return user;
+    }
+
+    /**
+     * Einfache User-Validierung (für boolean return)
+     */
+    public boolean validateUser(Long userId) {
+        try {
+            validateUserWithException(userId);
+            return true;
+        } catch (Exception e) {
+            System.err.println("User-Validierung fehlgeschlagen: " + e.getMessage());
+            return false;
+        }
     }
 
     // ===== LEGACY METHODEN (für Abwärtskompatibilität) =====
