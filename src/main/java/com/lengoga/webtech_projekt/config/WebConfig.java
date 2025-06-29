@@ -1,4 +1,4 @@
-package com.lengoga.webtech_projekt.config;
+/*package com.lengoga.webtech_projekt.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -20,4 +20,4 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowCredentials(true)
                 .maxAge(3600);
     }
-}
+}*/
